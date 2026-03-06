@@ -1,0 +1,55 @@
+# AI Security Workshop: Insecure Strands E‑Commerce Agent
+
+This repo contains an **intentionally insecure** Strands-based e-commerce assistant for running hands-on workshops about:
+
+- prompt injection
+- tool authorization
+- approvals / risk thresholds
+- PII scoping
+- outbound exfiltration controls
+- auditability
+
+The app is **supposed to start insecure**. The accompanying tests encode the **desired secure behavior**, so the initial version is expected to fail tests until you add guardrails.
+
+## Quickstart
+
+### Install
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+If you use `pyenv`, make sure Python **3.11+** is installed/active (this repo includes a `.python-version`).
+
+### Run the app (LLM mode by default)
+
+```bash
+python app.py
+```
+
+By default, the CLI **tries to start in LLM mode** (natural-language chat) and falls back to command mode if Strands/model configuration isn’t available.
+
+### Force command mode (no LLM)
+
+```bash
+ENABLE_LLM=0 python app.py
+```
+
+### Run tests
+
+```bash
+pytest -q
+```
+
+**Note:** tests are expected to fail at first. The workshop exercise is to implement guardrails (typically in `policy.py` and enforced by `tools.py`) so the tests pass.
+
+## Repository tour
+
+- `app.py`: CLI entrypoint (optionally uses a Strands `Agent`)
+- `db.py`: SQLite schema + seed data (includes a malicious product description with prompt injection)
+- `tools.py`: Strands tools (intentionally vulnerable)
+- `policy.py`: policy abstraction (exists but initially permissive / unused)
+- `prompts.py`: deliberately unsafe system prompt
+- `tests/test_guardrails.py`: target secure behavior (fails initially)
