@@ -12,6 +12,9 @@ import tools as ecomm_tools
 ACTOR_CUSTOMER_ID = os.environ.get("ACTOR_CUSTOMER_ID", "cust_001")
 DB_PATH = os.environ.get("ECOMM_DB", "ecomm.sqlite")
 
+# Model ID for LLM mode (Bedrock). Override with STRANDS_MODEL env var if needed.
+MODEL_ID = "eu.amazon.nova-2-lite-v1:0"
+
 
 def _print_result(result: dict[str, Any]) -> None:
     status = result.get("status", "unknown")
@@ -89,10 +92,11 @@ def _command_mode() -> None:
 def _llm_mode() -> None:
     from strands import Agent  # type: ignore[import-not-found]  # imported only when needed
 
-    model = os.environ.get("STRANDS_MODEL")  # optional; Strands defaults to Bedrock if unset
+    model = os.environ.get("STRANDS_MODEL") or MODEL_ID
     agent = Agent(
         model=model,
         system_prompt=SYSTEM_PROMPT,
+        callback_handler=None,
         tools=[
             ecomm_tools.search_products,
             ecomm_tools.get_product_details,
