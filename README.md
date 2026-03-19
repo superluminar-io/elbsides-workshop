@@ -43,6 +43,12 @@ ENABLE_LLM=0 python app.py
 pytest -q
 ```
 
+OR
+
+```bash
+python -m pytest -q
+```
+
 **Note:** tests are expected to fail at first. The workshop exercise is to implement guardrails (typically in `policy.py` and enforced by `tools.py`) so the tests pass.
 
 ## Repository tour
