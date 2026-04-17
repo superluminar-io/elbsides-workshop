@@ -26,7 +26,7 @@ def _db_path(db_path: str | None) -> str:
 def _ok(text: str, data: Any | None = None) -> dict[str, Any]:
     out: dict[str, Any] = {"status": "success", "content": [{"text": text}]}
     if data is not None:
-        out["data"] = data
+        out['content'][0]["json"] = data
     return out
 
 
