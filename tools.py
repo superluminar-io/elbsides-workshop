@@ -204,3 +204,39 @@ def send_email(
     finally:
         conn.close()
 
+
+@tool
+def list_orders(actor_customer_id: str, customer_id: str | None = None, *, db_path: str | None = None) -> dict[str, Any]:
+    """List orders for a customer.
+
+    Args:
+        actor_customer_id: The customer making the request.
+        customer_id: The customer ID to list orders for (defaults to actor_customer_id).
+        db_path: Optional SQLite path (used by tests).
+    """
+    # If no customer_id specified, use the actor's own ID
+    if customer_id is None:
+        customer_id = actor_customer_id
+
+    _ = policy.authorize_tool_call(actor_customer_id, "list_orders", {"customer_id": customer_id})
+
+    conn = db.connect(_db_path(db_path))
+    try:
+        rows = conn.execute(
+            """
+            SELECT order_id, sku, qty, total_cents, discount_percent, refunded_cents, status, created_at
+            FROM orders
+            WHERE customer_id = ?
+            ORDER BY created_at DESC
+            """,
+            (customer_id,),
+        ).fetchall()
+
+        orders = [dict(r) for r in rows]
+        if not orders:
+            return _ok(f"No orders found for customer {customer_id}.", [])
+
+        return _ok(f"Found {len(orders)} order(s) for customer {customer_id}.", orders)
+    finally:
+        conn.close()
+

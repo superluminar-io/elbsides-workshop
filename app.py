@@ -36,6 +36,7 @@ def _command_mode() -> None:
     print("  search <query>")
     print("  product <sku>")
     print("  profile <customer_id>")
+    print("  orders [customer_id]")
     print("  refund <order_id> <refund_cents>")
     print("  discount <order_id> <percent>")
     print("  email <to_email> <subject> | <body>")
@@ -59,6 +60,9 @@ def _command_mode() -> None:
             elif raw.startswith("profile "):
                 cid = raw.removeprefix("profile ").strip()
                 _print_result(ecomm_tools.get_customer_profile(ACTOR_CUSTOMER_ID, cid, db_path=DB_PATH))
+            elif raw.startswith("orders"):
+                cid = raw.removeprefix("orders").strip()
+                _print_result(ecomm_tools.list_orders(ACTOR_CUSTOMER_ID, cid if cid else None, db_path=DB_PATH))
             elif raw.startswith("refund "):
                 parts = raw.split()
                 if len(parts) != 3:
@@ -101,6 +105,7 @@ def _llm_mode() -> None:
             ecomm_tools.search_products,
             ecomm_tools.get_product_details,
             ecomm_tools.get_customer_profile,
+            ecomm_tools.list_orders,
             ecomm_tools.refund_order,
             ecomm_tools.apply_discount,
             ecomm_tools.send_email,
