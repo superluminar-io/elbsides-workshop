@@ -30,7 +30,21 @@ python app.py
 ```
 
 By default, the CLI **tries to start in LLM mode** (natural-language chat) and falls back to command mode if Strands/model configuration isn’t available.
+### Run the web chat interface
 
+```bash
+python server.py
+```
+
+Then open http://localhost:5000 in your browser. The web interface provides a chat UI for interacting with the agent.
+
+If port 5000 is already in use, specify a different port:
+
+```bash
+PORT=8080 python server.py
+```
+
+Then open http://localhost:8080 in your browser.
 ### Force command mode (no LLM)
 
 ```bash
@@ -49,13 +63,24 @@ OR
 python -m pytest -q
 ```
 
+### Reset the database
+
+To reset the database to its initial state (deletes all changes and reinitializes seed data):
+
+```bash
+python reset_db.py
+```
+
 **Note:** tests are expected to fail at first. The workshop exercise is to implement guardrails (typically in `policy.py` and enforced by `tools.py`) so the tests pass.
 
 ## Repository tour
 
 - `app.py`: CLI entrypoint (optionally uses a Strands `Agent`)
+- `server.py`: Web server with Flask (serves chat UI on http://localhost:5000)
+- `reset_db.py`: Script to reset the database to initial state
 - `db.py`: SQLite schema + seed data (includes a malicious product description with prompt injection)
 - `tools.py`: Strands tools (intentionally vulnerable)
 - `policy.py`: policy abstraction (exists but initially permissive / unused)
 - `prompts.py`: deliberately unsafe system prompt
+- `templates/`: HTML templates for the web interface
 - `tests/test_guardrails.py`: target secure behavior (fails initially)
