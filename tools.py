@@ -65,6 +65,28 @@ def search_products(query: str, *, db_path: str | None = None) -> dict[str, Any]
 
 
 @tool
+def list_products(*, db_path: str | None = None) -> dict[str, Any]:
+    """List all products.
+
+    Args:
+        db_path: Optional SQLite path (used by tests).
+    """
+    conn = db.connect(_db_path(db_path))
+    try:
+        rows = conn.execute(
+            """
+            SELECT sku, name, price_cents
+            FROM products
+            ORDER BY sku
+            """,
+        ).fetchall()
+        items = [dict(r) for r in rows]
+        return _ok(f"Found {len(items)} product(s).", items)
+    finally:
+        conn.close()
+
+
+@tool
 def get_product_details(sku: str, *, db_path: str | None = None) -> dict[str, Any]:
     """Get product details by SKU (includes untrusted description text).
 

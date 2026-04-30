@@ -103,6 +103,7 @@ def _llm_mode() -> None:
         callback_handler=None,
         tools=[
             ecomm_tools.search_products,
+            ecomm_tools.list_products,
             ecomm_tools.get_product_details,
             ecomm_tools.get_customer_profile,
             ecomm_tools.list_orders,
