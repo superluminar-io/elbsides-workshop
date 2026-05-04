@@ -1,6 +1,4 @@
-You’re right. Here is a **Module 1 fix section** you can use.
-
-## 🛠️ Fix: Enforce Customer Ownership in the Tools
+## Fix: Enforce Customer Ownership in the Tools
 
 The vulnerability is not in the model. The tools accept both:
 
@@ -18,7 +16,7 @@ A customer may only access their own:
 * profile
 * orders
 
-Accessing another customer’s data must fail closed.
+Accessing another customer’s data must fail.
 
 ---
 
@@ -94,20 +92,6 @@ Run:
 ```bash
 pytest tests/test_guardrails.py::test_pii_scoping_blocks_other_customer
 ```
-
-I’d also add a dedicated test for orders, because Module 1 includes both profile and order access:
-
-```python
-def test_order_scoping_blocks_other_customer(tmp_path: Path) -> None:
-    db_path = _init_tmp_db(tmp_path)
-
-    res = tools.list_orders("cust_001", "cust_002", db_path=db_path)
-
-    assert res["status"] == "error"
-    assert "not authorized" in res["content"][0]["text"].lower()
-```
-
----
 
 ## Teaching point
 
