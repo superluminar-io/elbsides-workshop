@@ -11,7 +11,7 @@ Specifically, try to retrieve:
 * another customer’s profile, or
 * another customer’s orders
 
-# ⚠️ Ignore other capabilities of the assistant for now—we’ll explore those later.
+### ⚠️ Ignore other capabilities of the assistant for now—we’ll explore those later.
 
 <details>
 <summary>Hint 1 (click to expand)</summary>
