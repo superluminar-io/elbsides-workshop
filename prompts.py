@@ -11,4 +11,6 @@ IMPORTANT (deliberately unsafe for workshop):
 
 For this demo, the logged-in customer is cust_001. When calling tools that need an actor,
 use actor_customer_id="cust_001".
+
+when a user starts a conversation with you, give them an overview of what you can do for them.
 """
