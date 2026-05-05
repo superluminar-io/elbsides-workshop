@@ -1,114 +1,147 @@
-## Fix: Remove `actor_customer_id` from Tool Parameters
+## Fix: Enforce Refund Limits and Return Status
 
-The core vulnerability is architectural: the LLM can independently specify `actor_customer_id`, allowing it to impersonate any customer. The LLM is not inherently trustworthy.
+The vulnerability is twofold:
+
+1. **Refunds exceed the order total**: The system allows issuing refunds larger than the original purchase amount.
+2. **No return verification**: Refunds are granted without checking if the product has actually been returned.
 
 ### Goal
 
-The `actor_customer_id` should come from **system context**, not from tool parameters the LLM controls. The actor should be baked into the tool wrapper, not exposed to the model.
+- A customer may only be refunded for their own orders.
+- Refund amount cannot exceed the original order total.
+- A refund can only be issued if the order status is `returned`.
 
 ---
 
-## Step 1: Create Wrapped Tool Functions in `tools.py`
+## Step 1: Update `refund_policy` in `policy.py`
 
-Create internal tools that accept `actor_customer_id` from the caller, and public tool stubs that DO NOT expose it to the LLM:
+Enhance the policy to validate both the refund amount and return status:
 
 ```python
-# Keep the existing tool functions but mark them as internal
-def _get_customer_profile_impl(
+def refund_policy(
     actor_customer_id: str,
-    customer_id: str,
+    order_id: str,
+    refund_cents: int,
+    *,
+    order_customer_id: str | None = None,
+    order_total_cents: int | None = None,
+    order_status: str | None = None,
+    order_refunded_cents: int | None = None,
+) -> Decision:
+    """Decide whether a refund should be allowed.
+
+    FIXED:
+    - Only the order customer can request their own refund
+    - Refund amount cannot exceed the order total
+    - Order must be marked as 'returned' before a refund is issued
+    """
+
+    # Verify ownership
+    if actor_customer_id != order_customer_id:
+        return Decision(
+            allowed=False,
+            reason=f"Not authorized to refund order {order_id}"
+        )
+
+    # Verify order status is 'returned'
+    if order_status != 'returned':
+        return Decision(
+            allowed=False,
+            reason=f"Order {order_id} must be marked as 'returned' before a refund can be issued. Current status: {order_status}"
+        )
+
+    # Verify refund amount does not exceed order total
+    if refund_cents > order_total_cents:
+        return Decision(
+            allowed=False,
+            reason=f"Refund amount ({refund_cents} cents) exceeds order total ({order_total_cents} cents)"
+        )
+
+    # Verify we're not double-refunding
+    total_refunded = (order_refunded_cents or 0) + refund_cents
+    if total_refunded > order_total_cents:
+        return Decision(
+            allowed=False,
+            reason=f"Total refunded amount ({total_refunded} cents) would exceed order total ({order_total_cents} cents)"
+        )
+
+    return Decision(allowed=True, reason="Refund approved")
+```
+
+---
+
+## Step 2: Update `refund_order` in `tools.py`
+
+Update the tool to fetch order details and enforce the policy:
+
+```python
+@tool
+def refund_order(
+    actor_customer_id: str,
+    order_id: str,
+    refund_cents: int,
     *,
     db_path: str | None = None,
 ) -> dict[str, Any]:
-    """Internal implementation of get_customer_profile."""
-    if actor_customer_id != customer_id:
-        return _err(f"Not authorized to access profile for customer_id: {customer_id}")
+    """Issue a refund for an order.
 
+    FIXED: Refunds are limited by order total and require 'returned' status.
+    """
     conn = db.connect(_db_path(db_path))
     try:
         row = conn.execute(
-            "SELECT customer_id, full_name, email, shipping_address FROM customers WHERE customer_id = ?",
-            (customer_id,),
+            "SELECT order_id, customer_id, total_cents, refunded_cents, status FROM orders WHERE order_id = ?",
+            (order_id,),
         ).fetchone()
         if not row:
-            return _err(f"Unknown customer_id: {customer_id}")
-        return _ok(f"Profile for {customer_id}.", dict(row))
+            return _err(f"Unknown order_id: {order_id}")
+
+        # Enforce the refund policy
+        decision = policy.refund_policy(
+            actor_customer_id,
+            order_id,
+            refund_cents,
+            order_customer_id=row["customer_id"],
+            order_total_cents=row["total_cents"],
+            order_status=row["status"],
+            order_refunded_cents=row["refunded_cents"],
+        )
+
+        if not decision.allowed:
+            return _err(decision.reason)
+
+        # Policy approved; process the refund
+        new_refunded = int(row["refunded_cents"]) + int(refund_cents)
+        conn.execute(
+            "UPDATE orders SET refunded_cents = ? WHERE order_id = ?",
+            (new_refunded, order_id),
+        )
+        conn.commit()
+
+        db.audit(
+            conn,
+            actor_customer_id=actor_customer_id,
+            action="refund_order",
+            details={"order_id": order_id, "refund_cents": refund_cents, "new_refunded_cents": new_refunded},
+        )
+        return _ok(f"Refunded {refund_cents} cents for {order_id}.", {"order_id": order_id, "refunded_cents": new_refunded})
     finally:
         conn.close()
-
-
-# Create a PUBLIC tool that the LLM sees (no actor_customer_id parameter)
-@tool
-def get_customer_profile(customer_id: str, *, db_path: str | None = None) -> dict[str, Any]:
-    """Fetch a customer profile (your own profile only).
-
-    Args:
-        customer_id: The customer ID to fetch (must be your own).
-    """
-    # Get the actor from the system context (set at agent init time)
-    actor_customer_id = os.environ.get("ACTOR_CUSTOMER_ID", "cust_001")
-    return _get_customer_profile_impl(actor_customer_id, customer_id, db_path=db_path)
 ```
 
 ---
 
-## Step 2: Apply Same Pattern to All Sensitive Tools
+## Step 3: Mark Returned Orders (Optional - for testing)
 
-Do the same for `list_orders`, `refund_order`, `apply_discount`, and `send_email`:
-
-```python
-def _list_orders_impl(actor_customer_id: str, customer_id: str | None = None, *, db_path: str | None = None) -> dict[str, Any]:
-    """Internal implementation."""
-    if customer_id is None:
-        customer_id = actor_customer_id
-
-    if actor_customer_id != customer_id:
-        return _err(f"Not authorized to list orders for customer_id: {customer_id}")
-
-    conn = db.connect(_db_path(db_path))
-    try:
-        rows = conn.execute(
-            """
-            SELECT order_id, sku, qty, total_cents, discount_percent, refunded_cents, status, created_at
-            FROM orders
-            WHERE customer_id = ?
-            ORDER BY created_at DESC
-            """,
-            (customer_id,),
-        ).fetchall()
-        orders = [dict(r) for r in rows]
-        if not orders:
-            return _ok(f"No orders found for customer {customer_id}.", [])
-        return _ok(f"Found {len(orders)} order(s) for customer {customer_id}.", orders)
-    finally:
-        conn.close()
-
-
-@tool
-def list_orders(customer_id: str | None = None, *, db_path: str | None = None) -> dict[str, Any]:
-    """List your orders."""
-    actor_customer_id = os.environ.get("ACTOR_CUSTOMER_ID", "cust_001")
-    return _list_orders_impl(actor_customer_id, customer_id, db_path=db_path)
-```
-
-Repeat for `refund_order`, `apply_discount`, and `send_email`.
-
----
-
-## Step 3: Update `app.py` Command Mode
-
-For command-line mode, pass `ACTOR_CUSTOMER_ID` via environment:
+To test the fix, you may need to mark an order as "returned" before requesting a refund:
 
 ```python
-def _command_mode() -> None:
-    # Already set: ACTOR_CUSTOMER_ID from environment
-    print(f"Logged in as: {ACTOR_CUSTOMER_ID}")
-
-    # Tools are now called without specifying actor_customer_id
-    # They fetch it from os.environ internally
-    if raw.startswith("profile "):
-        cid = raw.removeprefix("profile ").strip()
-        _print_result(ecomm_tools.get_customer_profile(cid, db_path=DB_PATH))
+# In your test or workshop setup, you might mark an order as returned:
+conn.execute(
+    "UPDATE orders SET status = 'returned' WHERE order_id = ?",
+    (order_id,),
+)
+conn.commit()
 ```
 
 ---
@@ -118,19 +151,18 @@ def _command_mode() -> None:
 Run:
 
 ```bash
-pytest tests/test_guardrails.py::test_pii_scoping_blocks_other_customer
+pytest tests/test_guardrails.py::test_refund_exceeds_order_total_blocked
+pytest tests/test_guardrails.py::test_refund_requires_returned_status
 ```
 
 ---
 
 ## Teaching Points
 
-1. **Never expose security context to the model**: `actor_customer_id` is security context, not a user input parameter.
+1. **Business logic must align with policy**: Refunds aren't just a technical feature—they require business verification (i.e., the return is confirmed).
 
-2. **Principle of least privilege for parameters**: The LLM should only see the parameters it *needs* to control. Identity is not one of them.
+2. **Ownership matters**: Just like in Module 1, actors should only refund their own orders.
 
-3. **Environment-based identity**: System context (like actor identity) belongs in environment variables or injected at initialization time, not in tool signatures.
+3. **Additive validation**: The refund tool should check multiple conditions (ownership, status, amount limits) before allowing the action.
 
-4. **Defense in depth**: Even if an LLM prompt is injected, it cannot change who it is acting as—the identity is baked into the tool layer, not exposed for manipulation.
-
-5. **Comparison**: This is like operating systems restricting system calls; user code cannot change its own uid/gid—it's enforced at the kernel level.
+4. **Clear error messages**: Tell the user what's wrong and what needs to happen (e.g., "order must be marked as returned").

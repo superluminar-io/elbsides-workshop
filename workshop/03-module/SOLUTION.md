@@ -1,168 +1,175 @@
-## Fix: Enforce Refund Limits and Return Status
+## Fix: Enforce Discount Limits and Ownership
 
-The vulnerability is twofold:
-
-1. **Refunds exceed the order total**: The system allows issuing refunds larger than the original purchase amount.
-2. **No return verification**: Refunds are granted without checking if the product has actually been returned.
+The vulnerability is that the system allows applying arbitrarily large discounts (e.g., 95%–100%) without any business validation.
 
 ### Goal
 
-- A customer may only be refunded for their own orders.
-- Refund amount cannot exceed the original order total.
-- A refund can only be issued if the order status is `returned`.
+- A customer may only apply discounts to their own orders.
+- Discount percentage is capped at a reasonable maximum (e.g., 25%).
+- Discounts above a certain threshold (e.g., 15%) require approval.
 
 ---
 
-## Step 1: Update `refund_policy` in `policy.py`
+## Step 1: Update `discount_policy` in `policy.py`
 
-Enhance the policy to validate both the refund amount and return status:
+Add validation for discount limits and ownership:
 
 ```python
-def refund_policy(
+def discount_policy(
     actor_customer_id: str,
     order_id: str,
-    refund_cents: int,
+    percent: int,
     *,
     order_customer_id: str | None = None,
-    order_total_cents: int | None = None,
-    order_status: str | None = None,
-    order_refunded_cents: int | None = None,
 ) -> Decision:
-    """Decide whether a refund should be allowed.
+    """Decide whether a discount should be allowed.
 
     FIXED:
-    - Only the order customer can request their own refund
-    - Refund amount cannot exceed the order total
-    - Order must be marked as 'returned' before a refund is issued
+    - Only the order customer can apply discounts to their own order
+    - Discount percentage is capped at 25%
+    - Discounts above 15% require approval (flagged for human review)
     """
 
     # Verify ownership
     if actor_customer_id != order_customer_id:
         return Decision(
             allowed=False,
-            reason=f"Not authorized to refund order {order_id}"
+            reason=f"Not authorized to apply discount to order {order_id}"
         )
 
-    # Verify order status is 'returned'
-    if order_status != 'returned':
+    # Enforce maximum discount
+    MAX_DISCOUNT_PERCENT = 25
+    if percent > MAX_DISCOUNT_PERCENT:
         return Decision(
             allowed=False,
-            reason=f"Order {order_id} must be marked as 'returned' before a refund can be issued. Current status: {order_status}"
+            reason=f"Discount {percent}% exceeds maximum allowed discount of {MAX_DISCOUNT_PERCENT}%"
         )
 
-    # Verify refund amount does not exceed order total
-    if refund_cents > order_total_cents:
+    # Validate non-negative
+    if percent < 0:
         return Decision(
             allowed=False,
-            reason=f"Refund amount ({refund_cents} cents) exceeds order total ({order_total_cents} cents)"
+            reason="Discount percentage cannot be negative"
         )
 
-    # Verify we're not double-refunding
-    total_refunded = (order_refunded_cents or 0) + refund_cents
-    if total_refunded > order_total_cents:
+    # Flag large discounts for approval
+    APPROVAL_THRESHOLD = 15
+    if percent > APPROVAL_THRESHOLD:
         return Decision(
-            allowed=False,
-            reason=f"Total refunded amount ({total_refunded} cents) would exceed order total ({order_total_cents} cents)"
+            allowed=True,
+            reason=f"Discount {percent}% approved but requires human review",
+            requires_approval=True
         )
 
-    return Decision(allowed=True, reason="Refund approved")
+    return Decision(allowed=True, reason="Discount approved")
 ```
 
 ---
 
-## Step 2: Update `refund_order` in `tools.py`
+## Step 2: Update `apply_discount` in `tools.py`
 
 Update the tool to fetch order details and enforce the policy:
 
 ```python
 @tool
-def refund_order(
+def apply_discount(
     actor_customer_id: str,
     order_id: str,
-    refund_cents: int,
+    percent: int,
     *,
     db_path: str | None = None,
 ) -> dict[str, Any]:
-    """Issue a refund for an order.
+    """Apply a discount percent to an order.
 
-    FIXED: Refunds are limited by order total and require 'returned' status.
+    FIXED: Discounts are limited to 25% and require ownership.
     """
     conn = db.connect(_db_path(db_path))
     try:
         row = conn.execute(
-            "SELECT order_id, customer_id, total_cents, refunded_cents, status FROM orders WHERE order_id = ?",
+            "SELECT order_id, customer_id FROM orders WHERE order_id = ?",
             (order_id,),
         ).fetchone()
         if not row:
             return _err(f"Unknown order_id: {order_id}")
 
-        # Enforce the refund policy
-        decision = policy.refund_policy(
+        # Enforce the discount policy
+        decision = policy.discount_policy(
             actor_customer_id,
             order_id,
-            refund_cents,
+            percent,
             order_customer_id=row["customer_id"],
-            order_total_cents=row["total_cents"],
-            order_status=row["status"],
-            order_refunded_cents=row["refunded_cents"],
         )
 
         if not decision.allowed:
             return _err(decision.reason)
 
-        # Policy approved; process the refund
-        new_refunded = int(row["refunded_cents"]) + int(refund_cents)
+        # Policy approved; apply the discount
         conn.execute(
-            "UPDATE orders SET refunded_cents = ? WHERE order_id = ?",
-            (new_refunded, order_id),
+            "UPDATE orders SET discount_percent = ? WHERE order_id = ?",
+            (int(percent), order_id),
         )
         conn.commit()
 
+        # Log with approval flag if necessary
+        audit_details = {
+            "order_id": order_id,
+            "percent": int(percent),
+            "requires_approval": decision.requires_approval,
+        }
         db.audit(
             conn,
             actor_customer_id=actor_customer_id,
-            action="refund_order",
-            details={"order_id": order_id, "refund_cents": refund_cents, "new_refunded_cents": new_refunded},
+            action="apply_discount",
+            details=audit_details,
         )
-        return _ok(f"Refunded {refund_cents} cents for {order_id}.", {"order_id": order_id, "refunded_cents": new_refunded})
+
+        msg = f"Applied discount {percent}% to {order_id}."
+        if decision.requires_approval:
+            msg += " (This discount has been flagged for human review.)"
+
+        return _ok(msg, {"order_id": order_id, "percent": int(percent), "flagged": decision.requires_approval})
     finally:
         conn.close()
 ```
 
 ---
 
-## Step 3: Mark Returned Orders (Optional - for testing)
+## Alternative: No Direct Discount Authority
 
-To test the fix, you may need to mark an order as "returned" before requesting a refund:
+In a more secure design, customers would not have direct discount authority at all. Instead, they could request a discount, but only a support agent could approve it. In that case, you might remove the `apply_discount` tool from the customer assistant entirely:
 
 ```python
-# In your test or workshop setup, you might mark an order as returned:
-conn.execute(
-    "UPDATE orders SET status = 'returned' WHERE order_id = ?",
-    (order_id,),
-)
-conn.commit()
+# In app.py, when building the agent:
+agent.register_tool(search_products)
+agent.register_tool(list_products)
+agent.register_tool(get_product_details)
+agent.register_tool(get_customer_profile)
+agent.register_tool(list_orders)
+agent.register_tool(refund_order)
+# agent.register_tool(apply_discount)  # NOT available to customers; requires support staff
 ```
 
 ---
 
-## Step 4: Validate the fix
+## Step 3: Validate the fix
 
 Run:
 
 ```bash
-pytest tests/test_guardrails.py::test_refund_exceeds_order_total_blocked
-pytest tests/test_guardrails.py::test_refund_requires_returned_status
+pytest tests/test_guardrails.py::test_discount_exceeds_maximum_blocked
+pytest tests/test_guardrails.py::test_discount_ownership_enforced
 ```
 
 ---
 
 ## Teaching Points
 
-1. **Business logic must align with policy**: Refunds aren't just a technical feature—they require business verification (i.e., the return is confirmed).
+1. **Set reasonable business limits**: Discounts are a legitimate tool, but they need guardrails. A 25% maximum is meaningful but still flexible.
 
-2. **Ownership matters**: Just like in Module 1, actors should only refund their own orders.
+2. **Tiered enforcement**: Small discounts auto-approve; large ones flag for review. This balances user experience with oversight.
 
-3. **Additive validation**: The refund tool should check multiple conditions (ownership, status, amount limits) before allowing the action.
+3. **Ownership matters**: Like refunds and PII access, discounts should only apply to the actor's own orders.
 
-4. **Clear error messages**: Tell the user what's wrong and what needs to happen (e.g., "order must be marked as returned").
+4. **Consider the zero-trust model**: If discounts are high-risk, don't give the AI agent authority at all—require a human approval flow.
+
+5. **Audit flags**: Use the audit log to track which discounts were flagged, creating visibility for compliance teams.
