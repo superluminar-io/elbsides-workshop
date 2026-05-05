@@ -29,14 +29,14 @@ def discount_policy(
     - Discount percentage is capped at 25%
     - Discounts above 15% require approval (flagged for human review)
     """
-    
+
     # Verify ownership
     if actor_customer_id != order_customer_id:
         return Decision(
             allowed=False,
             reason=f"Not authorized to apply discount to order {order_id}"
         )
-    
+
     # Enforce maximum discount
     MAX_DISCOUNT_PERCENT = 25
     if percent > MAX_DISCOUNT_PERCENT:
@@ -44,14 +44,14 @@ def discount_policy(
             allowed=False,
             reason=f"Discount {percent}% exceeds maximum allowed discount of {MAX_DISCOUNT_PERCENT}%"
         )
-    
+
     # Validate non-negative
     if percent < 0:
         return Decision(
             allowed=False,
             reason="Discount percentage cannot be negative"
         )
-    
+
     # Flag large discounts for approval
     APPROVAL_THRESHOLD = 15
     if percent > APPROVAL_THRESHOLD:
@@ -60,7 +60,7 @@ def discount_policy(
             reason=f"Discount {percent}% approved but requires human review",
             requires_approval=True
         )
-    
+
     return Decision(allowed=True, reason="Discount approved")
 ```
 
@@ -99,10 +99,10 @@ def apply_discount(
             percent,
             order_customer_id=row["customer_id"],
         )
-        
+
         if not decision.allowed:
             return _err(decision.reason)
-        
+
         # Policy approved; apply the discount
         conn.execute(
             "UPDATE orders SET discount_percent = ? WHERE order_id = ?",
@@ -122,11 +122,11 @@ def apply_discount(
             action="apply_discount",
             details=audit_details,
         )
-        
+
         msg = f"Applied discount {percent}% to {order_id}."
         if decision.requires_approval:
             msg += " (This discount has been flagged for human review.)"
-        
+
         return _ok(msg, {"order_id": order_id, "percent": int(percent), "flagged": decision.requires_approval})
     finally:
         conn.close()
