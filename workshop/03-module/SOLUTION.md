@@ -14,6 +14,9 @@ The vulnerability is that the system allows applying arbitrarily large discounts
 
 Add validation for discount limits and ownership:
 
+<details>
+<summary>Hint 1</summary>
+
 ```python
 def discount_policy(
     actor_customer_id: str,
@@ -64,11 +67,16 @@ def discount_policy(
     return Decision(allowed=True, reason="Discount approved")
 ```
 
+</details>
+
 ---
 
 ## Step 2: Update `apply_discount` in `tools.py`
 
 Update the tool to fetch order details and enforce the policy:
+
+<details>
+<summary>Hint 1</summary>
 
 ```python
 @tool
@@ -131,6 +139,8 @@ def apply_discount(
     finally:
         conn.close()
 ```
+
+</details>
 
 ---
 

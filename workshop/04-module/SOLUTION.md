@@ -1,3 +1,5 @@
+ToDo: the solution needs to be updated because we will do it differently
+
 ## Fix: Remove `actor_customer_id` from Tool Parameters
 
 The core vulnerability is architectural: the LLM can independently specify `actor_customer_id`, allowing it to impersonate any customer. The LLM is not inherently trustworthy.
@@ -7,6 +9,9 @@ The core vulnerability is architectural: the LLM can independently specify `acto
 The `actor_customer_id` should come from **system context**, not from tool parameters the LLM controls. The actor should be baked into the tool wrapper, not exposed to the model.
 
 ---
+
+<details>
+<summary>Hint 1</summary>
 
 ## Step 1: Create Wrapped Tool Functions in `tools.py`
 
@@ -36,6 +41,7 @@ def _get_customer_profile_impl(
     finally:
         conn.close()
 
+</details>
 
 # Create a PUBLIC tool that the LLM sees (no actor_customer_id parameter)
 @tool
@@ -55,6 +61,9 @@ def get_customer_profile(customer_id: str, *, db_path: str | None = None) -> dic
 ## Step 2: Apply Same Pattern to All Sensitive Tools
 
 Do the same for `list_orders`, `refund_order`, `apply_discount`, and `send_email`:
+
+<details>
+<summary>Hint 1</summary>
 
 ```python
 def _list_orders_impl(actor_customer_id: str, customer_id: str | None = None, *, db_path: str | None = None) -> dict[str, Any]:
@@ -91,9 +100,14 @@ def list_orders(customer_id: str | None = None, *, db_path: str | None = None) -
     return _list_orders_impl(actor_customer_id, customer_id, db_path=db_path)
 ```
 
+</details>
+
 Repeat for `refund_order`, `apply_discount`, and `send_email`.
 
 ---
+
+<details>
+<summary>Hint 1</summary>
 
 ## Step 3: Update `app.py` Command Mode
 
@@ -110,7 +124,7 @@ def _command_mode() -> None:
         cid = raw.removeprefix("profile ").strip()
         _print_result(ecomm_tools.get_customer_profile(cid, db_path=DB_PATH))
 ```
-
+</details>
 ---
 
 ## Step 4: Validate the fix

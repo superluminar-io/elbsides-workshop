@@ -12,6 +12,9 @@ Customers may not send emails. This tool is restricted to internal staff or disa
 
 The policy function should reject email sending for customer actors:
 
+<details>
+<summary>Hint 1</summary>
+
 ```python
 def allowed_email_recipient(actor_customer_id: str, to_email: str) -> Decision:
     """Check whether the actor is allowed to send email.
@@ -24,11 +27,16 @@ def allowed_email_recipient(actor_customer_id: str, to_email: str) -> Decision:
     )
 ```
 
+</details>
+
 ---
 
 ## Step 2: Update `send_email` in `tools.py`
 
 In `tools.py`, check the policy before allowing any email action:
+
+<details>
+<summary>Hint 1</summary>
 
 ```python
 @tool
@@ -63,11 +71,16 @@ def send_email(
         conn.close()
 ```
 
+</details>
+
 ---
 
 ## Step 3: Alternatively, Remove the Tool Entirely
 
 For a customer-facing assistant, you could simply not register the `send_email` tool at all in `app.py`:
+
+<details>
+<summary>Hint 1</summary>
 
 ```python
 # In app.py, when building the agent:
@@ -80,6 +93,8 @@ agent.register_tool(refund_order)
 agent.register_tool(apply_discount)
 # agent.register_tool(send_email)  # NOT available to customers
 ```
+
+</details>
 
 ---
 
