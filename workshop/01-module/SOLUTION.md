@@ -17,6 +17,9 @@ The vulnerability is twofold:
 
 Enhance the policy to validate both the refund amount and return status:
 
+<details>
+<summary>Hint 1</summary>
+
 ```python
 def refund_policy(
     actor_customer_id: str,
@@ -68,11 +71,16 @@ def refund_policy(
     return Decision(allowed=True, reason="Refund approved")
 ```
 
+</details>
+
 ---
 
 ## Step 2: Update `refund_order` in `tools.py`
 
 Update the tool to fetch order details and enforce the policy:
+
+<details>
+<summary>Hint 1</summary>
 
 ```python
 @tool
@@ -129,11 +137,16 @@ def refund_order(
         conn.close()
 ```
 
+</details>
+
 ---
 
 ## Step 3: Mark Returned Orders (Optional - for testing)
 
 To test the fix, you may need to mark an order as "returned" before requesting a refund:
+
+<details>
+<summary>Hint 1</summary>
 
 ```python
 # In your test or workshop setup, you might mark an order as returned:
@@ -143,7 +156,7 @@ conn.execute(
 )
 conn.commit()
 ```
-
+</details>
 ---
 
 ## Step 4: Validate the fix
@@ -161,8 +174,6 @@ pytest tests/test_guardrails.py::test_refund_requires_returned_status
 
 1. **Business logic must align with policy**: Refunds aren't just a technical feature—they require business verification (i.e., the return is confirmed).
 
-2. **Ownership matters**: Just like in Module 1, actors should only refund their own orders.
-
-3. **Additive validation**: The refund tool should check multiple conditions (ownership, status, amount limits) before allowing the action.
+3. **Additive validation**: The refund tool should check multiple conditions (status, amount limits) before allowing the action.
 
 4. **Clear error messages**: Tell the user what's wrong and what needs to happen (e.g., "order must be marked as returned").
