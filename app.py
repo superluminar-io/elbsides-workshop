@@ -105,7 +105,7 @@ def _llm_mode() -> None:
             ecomm_tools.search_products,
             ecomm_tools.list_products,
             ecomm_tools.get_product_details,
-            ecomm_tools.get_customer_profile,
+            ecomm_tools.get_customer_profile_provider(ACTOR_CUSTOMER_ID),
             ecomm_tools.list_orders,
             ecomm_tools.refund_order,
             ecomm_tools.apply_discount,

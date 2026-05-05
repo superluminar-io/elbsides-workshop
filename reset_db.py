@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Reset the database to its initial state."""
 from __future__ import annotations
 
