@@ -69,7 +69,17 @@ Find a better way to enforce that the LLM can only access the profile of the cus
 <details>
 <summary>Hint 1</summary>
 
-Try wrapping the tool in a function that injects the `actor_customer_id` from another source, instead of passing it as a parameter that the LLM can manipulate.
+Try wrapping the tool in a function that injects the `actor_customer_id` from another source, instead of passing it as a parameter that the LLM can manipulate. We prepared a generic wrapper function for you in `wrap.py`. You can use it to wrap your tool initializations in `app.py` like so:
+```
+...
+make_tool(ecomm_tools.get_customer_profile_provider,ACTOR_CUSTOMER_ID),
+...
+```
+
+Don't forget to import the function like so:
+```
+from wrap import make_tool
+```
 
 </details>
 
