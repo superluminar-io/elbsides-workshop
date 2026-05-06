@@ -1,32 +1,36 @@
-ToDo: the solution needs to be updated because we will do it differently
+## Fix PII Leakage
 
-## Fix: Remove `actor_customer_id` from Tool Parameters
+## Simple Authorization Check
 
-The core vulnerability is architectural: the LLM can independently specify `actor_customer_id`, allowing it to impersonate any customer. The LLM is not inherently trustworthy.
-
-### Goal
-
-The `actor_customer_id` should come from **system context**, not from tool parameters the LLM controls. The actor should be baked into the tool wrapper, not exposed to the model.
+Check out the `policy.py` and `tools.py` files. Can you add a simple authorization check?
 
 <details>
-<summary>Hint 1</summary>
+<summary> Code </summary>
 
-## Step 1: Create Wrapped Tool Functions in `tools.py`
-
-Create internal tools that accept `actor_customer_id` from the caller, and public tool stubs that DO NOT expose it to the LLM:
+**Implementation in `policy.py`:**
 
 ```python
-# Keep the existing tool functions but mark them as internal
-def _get_customer_profile_impl(
-    actor_customer_id: str,
-    customer_id: str,
-    *,
-    db_path: str | None = None,
-) -> dict[str, Any]:
-    """Internal implementation of get_customer_profile."""
-    if actor_customer_id != customer_id:
-        return _err(f"Not authorized to access profile for customer_id: {customer_id}")
+def authorize_access(actor_customer_id: str, target_customer_id: str) -> Decision:
+    """Check if actor can access target customer data."""
+    allowed = actor_customer_id == target_customer_id
+    return Decision(
+        allowed=allowed,
+        reason="Actor cannot access other customers' data" if not allowed else "OK"
+    )
+```
 
+**Update `get_customer_profile` in `tools.py`:**
+
+```python
+@tool
+def get_customer_profile(actor_customer_id: str, customer_id: str, *, db_path: str | None = None) -> dict[str, Any]:
+    """Fetch a customer profile."""
+    # Check authorization first
+    decision = policy.authorize_access(actor_customer_id, customer_id)
+    if not decision.allowed:
+        return _err(decision.reason)
+
+    # Proceed with lookup
     conn = db.connect(_db_path(db_path))
     try:
         row = conn.execute(
@@ -38,99 +42,42 @@ def _get_customer_profile_impl(
         return _ok(f"Profile for {customer_id}.", dict(row))
     finally:
         conn.close()
-
-# Create a PUBLIC tool that the LLM sees (no actor_customer_id parameter)
-@tool
-def get_customer_profile(customer_id: str, *, db_path: str | None = None) -> dict[str, Any]:
-    """Fetch a customer profile (your own profile only).
-
-    Args:
-        customer_id: The customer ID to fetch (must be your own).
-    """
-    # Get the actor from the system context (set at agent init time)
-    actor_customer_id = os.environ.get("ACTOR_CUSTOMER_ID", "cust_001")
-    return _get_customer_profile_impl(actor_customer_id, customer_id, db_path=db_path)
 ```
+
 </details>
 
+## Questions
 
-## Step 2: Apply Same Pattern to All Sensitive Tools
-
-Do the same for `list_orders`, `refund_order`, `apply_discount`, and `send_email`:
+Does this fix the problem? Try it out. What happens and Why?
 
 <details>
-<summary>Hint 2</summary>
+<summary>Answer</summary>
 
-```python
-def _list_orders_impl(actor_customer_id: str, customer_id: str | None = None, *, db_path: str | None = None) -> dict[str, Any]:
-    """Internal implementation."""
-    if customer_id is None:
-        customer_id = actor_customer_id
-
-    if actor_customer_id != customer_id:
-        return _err(f"Not authorized to list orders for customer_id: {customer_id}")
-
-    conn = db.connect(_db_path(db_path))
-    try:
-        rows = conn.execute(
-            """
-            SELECT order_id, sku, qty, total_cents, discount_percent, refunded_cents, status, created_at
-            FROM orders
-            WHERE customer_id = ?
-            ORDER BY created_at DESC
-            """,
-            (customer_id,),
-        ).fetchall()
-        orders = [dict(r) for r in rows]
-        if not orders:
-            return _ok(f"No orders found for customer {customer_id}.", [])
-        return _ok(f"Found {len(orders)} order(s) for customer {customer_id}.", orders)
-    finally:
-        conn.close()
-
-
-@tool
-def list_orders(customer_id: str | None = None, *, db_path: str | None = None) -> dict[str, Any]:
-    """List your orders."""
-    actor_customer_id = os.environ.get("ACTOR_CUSTOMER_ID", "cust_001")
-    return _list_orders_impl(actor_customer_id, customer_id, db_path=db_path)
-```
+**Limitation:** This is not a complete fix. The LLM still has the `actor_customer_id` parameter available and can be prompted to ignore the check. A sophisticated prompt injection or jailbreak could persuade it to pass mismatched IDs anyway. This is why Option 2 is recommended.
 
 </details>
-
-Repeat for `refund_order`, `apply_discount`, and `send_email`.
 
 ---
 
-## Step 3: Update `app.py` Command Mode
 
-For command-line mode, pass `ACTOR_CUSTOMER_ID` via environment:
+## Option 2: Restrict the LLM's view of the parameters
+
+### Goal
+
+Find a better way to enforce that the LLM can only access the profile of the customer it is acting on behalf of, without exposing `actor_customer_id` as a parameter that the LLM can manipulate.
 
 <details>
-<summary>Hint 3</summary>
+<summary>Hint 1</summary>
 
-```python
-def _command_mode() -> None:
-    # Already set: ACTOR_CUSTOMER_ID from environment
-    print(f"Logged in as: {ACTOR_CUSTOMER_ID}")
+Try wrapping the tool in a function that injects the `actor_customer_id` from another source, instead of passing it as a parameter that the LLM can manipulate.
 
-    # Tools are now called without specifying actor_customer_id
-    # They fetch it from os.environ internally
-    if raw.startswith("profile "):
-        cid = raw.removeprefix("profile ").strip()
-        _print_result(ecomm_tools.get_customer_profile(cid, db_path=DB_PATH))
-```
 </details>
 
-## Step 4: Validate the fix
+<details>
+<summary> Code </summary>
 
-Run:
 
-```bash
-pytest tests/test_guardrails.py::test_pii_scoping_blocks_other_customer
-```
-
----
+</details>
 
 ## Teaching Points
 
