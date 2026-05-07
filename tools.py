@@ -104,29 +104,27 @@ def get_product_details(sku: str, *, db_path: str | None = None) -> dict[str, An
         conn.close()
 
 
-def get_customer_profile_provider(actor_id: str):
-    @tool
-    def get_customer_profile(customer_id: str, *, db_path: str | None = None) -> dict[str, Any]:
-        """Fetch a customer profile.
+@tool
+def get_customer_profile(actor_id: str, customer_id: str, *, db_path: str | None = None) -> dict[str, Any]:
+    """Fetch a customer profile.
 
-        INSECURE BASELINE: does not scope access to the actor; leaks PII.
-        """
-        d = policy.authorize_tool_call(actor_id, "get_customer_profile", {"customer_id": customer_id})
-        if not d.allowed:
-            return _err("not for you")
+    INSECURE BASELINE: does not scope access to the actor; leaks PII.
+    """
+    d = policy.authorize_tool_call(actor_id, "get_customer_profile", {"customer_id": customer_id})
+    if not d.allowed:
+        return _err("not for you")
 
-        conn = db.connect(_db_path(db_path))
-        try:
-            row = conn.execute(
-                "SELECT customer_id, full_name, email, shipping_address FROM customers WHERE customer_id = ?",
-                (customer_id,),
-            ).fetchone()
-            if not row:
-                return _err(f"Unknown customer_id: {customer_id}")
-            return _ok(f"Profile for {customer_id}.", dict(row))
-        finally:
-            conn.close()
-    return get_customer_profile
+    conn = db.connect(_db_path(db_path))
+    try:
+        row = conn.execute(
+            "SELECT customer_id, full_name, email, shipping_address FROM customers WHERE customer_id = ?",
+            (customer_id,),
+        ).fetchone()
+        if not row:
+            return _err(f"Unknown customer_id: {customer_id}")
+        return _ok(f"Profile for {customer_id}.", dict(row))
+    finally:
+        conn.close()
 
 
 @tool
