@@ -2,12 +2,10 @@
 
 This repo contains an **intentionally insecure** Strands-based e-commerce assistant for running hands-on workshops about:
 
-- prompt injection
-- tool authorization
-- approvals / risk thresholds
-- PII scoping
+- excessive tool authority (refunds, discounts)
 - outbound exfiltration controls
-- auditability
+- PII scoping / cross-customer data access
+- tool authorization
 
 The app is **supposed to start insecure**. The accompanying tests encode the **desired secure behavior**, so the initial version is expected to fail tests until you add guardrails.
 
