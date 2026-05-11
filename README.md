@@ -18,7 +18,7 @@ The app is **supposed to start insecure**. The accompanying tests encode the **d
 | Requirement | Version | Notes |
 |---|---|---|
 | Python | 3.11 or higher | |
-| `uv` | latest | Fast Python package manager |
+| `uv` or `pip` | — | `uv` is recommended; `pip` works too |
 | Git | any recent version | |
 | AWS CLI | v2 | For configuring your IAM credentials |
 | A code editor | — | VS Code recommended |
@@ -38,9 +38,11 @@ If the version shown is below 3.11, install a newer one.
 
 You can also use [pyenv](https://github.com/pyenv/pyenv) to manage multiple Python versions. The repository includes a `.python-version` file that pins the project to Python 3.11.
 
-### 2. `uv` — Python package manager
+### 2. Package manager — `uv` (recommended) or `pip`
 
-`uv` is the package manager used by this project. It is significantly faster than `pip` and handles virtual environments automatically.
+You can use either `uv` or `pip` to install dependencies. `uv` is recommended — it is significantly faster and manages the virtual environment for you — but `pip` works fine if you prefer.
+
+**To install `uv`:**
 
 ```bash
 # macOS / Linux
@@ -51,6 +53,8 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ```
 
 Verify: `uv --version` — documentation: [docs.astral.sh/uv](https://docs.astral.sh/uv/)
+
+If you prefer to use `pip`, no additional installation is needed — it comes with Python.
 
 ### 3. AWS CLI v2
 
@@ -92,23 +96,32 @@ aws sts get-caller-identity --profile ai-workshop
 
 You should see a JSON response with your account and user ARN. If you see an error, double-check the keys and region.
 
-You also need to export the region as an environment variable so the Bedrock client picks it up at runtime:
+
+### 5. Install dependencies
+
+From inside the repository directory, run one of the following depending on your chosen package manager:
+
+**With `uv` (recommended):**
 
 ```bash
-export AWS_REGION=eu-central-1
-```
-
-Add this to your shell profile (e.g. `~/.zshrc` or `~/.bashrc`) so you don't have to repeat it each session.
-
-### 5. Clone and install
-
-```bash
-git clone <repository-url>
-cd ai-security-workshop
 uv sync
 ```
 
-`uv sync` creates a virtual environment (`.venv/`) and installs all dependencies from the lock file.
+`uv sync` creates a virtual environment (`.venv/`) and installs all dependencies from the lock file automatically.
+
+**With `pip`:**
+
+```bash
+python3 -m venv .venv
+
+# macOS / Linux
+source .venv/bin/activate
+
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+pip install -r requirements.txt
+```
 
 ### 6. Verify the setup
 
@@ -161,9 +174,8 @@ Then open [http://localhost:8080](http://localhost:8080) instead.
 
 | Task | Command |
 |---|---|
-| Install dependencies | `uv sync` |
+| Install dependencies | `uv sync` **or** `pip install -r requirements.txt` (pick one) |
 | Activate virtualenv (macOS/Linux) | `source .venv/bin/activate` |
-| Set AWS region | `export AWS_REGION=eu-central-1` |
 | Start web UI | `AWS_PROFILE=ai-workshop python server.py` |
 | Start CLI (LLM mode) | `AWS_PROFILE=ai-workshop python app.py` |
 | Start CLI (no LLM) | `ENABLE_LLM=0 python app.py` |
