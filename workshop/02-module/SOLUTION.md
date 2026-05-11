@@ -117,3 +117,15 @@ pytest tests/test_guardrails.py::test_email_to_other_customer_blocked
 3. **Policy as a safety net**: Even if a tool is accidentally registered, the policy layer can reject it.
 
 4. **Role-based access control**: In a mature system, different actors (customers, support staff, admins) would have different tool access. This is a simple example of that principle.
+
+---
+
+## Real World Example
+
+In May 2018, a Portland family's Amazon Echo recorded their private conversation and sent it as a voice message to a random person in their contacts list. The recipient — an employee of the husband — called to warn them: "Unplug your Alexa devices right now." Amazon confirmed the incident: Alexa had misheard a background word as "Alexa," then interpreted the subsequent conversation as a series of commands including "send message," and picked a contact name from what it thought it heard next.
+
+The family had no idea the device was capable of doing this. Amazon's statement described it as "an extremely rare occurrence" — which is the kind of reassurance that is only reassuring until it happens to you.
+
+While the context is not identical, it illustrates the risks of a capable messaging tool with no authorization check on who it could contact, and no confirmation step before sending.
+
+> [Amazon Echo sent couple's private conversation to one of their contacts — BBC News, 25 May 2018](https://www.bbc.com/news/technology-44383290)
