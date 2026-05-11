@@ -81,14 +81,6 @@ Don't forget to import the function like so:
 from wrap import make_tool
 ```
 
-</details>
-
-<details>
-<summary> Code </summary>
-
-
-</details>
-
 ## Teaching Points
 
 1. **Never expose security context to the model**: `actor_customer_id` is security context, not a user input parameter.
