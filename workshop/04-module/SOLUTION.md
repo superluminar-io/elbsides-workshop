@@ -48,12 +48,12 @@ def get_customer_profile(actor_customer_id: str, customer_id: str, *, db_path: s
 
 ## Questions
 
-Does this fix the problem? Try it out. What happens and Why?
+Does this fix the problem? Is your test green, is this meaninful? Try it out. What happens and Why?
 
 <details>
 <summary>Answer</summary>
 
-**Limitation:** This is not a complete fix. The LLM still has the `actor_customer_id` parameter available and can be prompted to ignore the check. A sophisticated prompt injection or jailbreak could persuade it to pass mismatched IDs anyway. This is why Option 2 is recommended.
+**Limitation:** This is not a complete fix. The LLM still has the `actor_customer_id` parameter available and can be prompted to ignore the check. A little prompt injection could result in the LLM passing the incorrect `actor_customer_id` to access other customers' data. That would mean that the actor_customer_id and customer_id match, and the authorization check would pass, even though the LLM is acting on behalf of a different customer.
 
 </details>
 
