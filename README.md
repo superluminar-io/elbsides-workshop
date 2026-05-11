@@ -147,7 +147,7 @@ You should see output like:
 FAILED tests/test_guardrails.py::test_pii_scoping_blocks_other_customer
 FAILED tests/test_guardrails.py::test_refund_blocks_other_customers_order
 ...
-5 failed in 0.XXs
+4 failed in 0.XXs
 ```
 
 **Failing tests are expected at this point.** The tests encode the secure behavior you will implement during the workshop. If the tests run (even if they fail), your environment is set up correctly.

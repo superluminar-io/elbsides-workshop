@@ -1,4 +1,4 @@
-# Module 3: Excessive Refund Authority
+# Module 1: Excessive Refund Authority
 
 ## Task
 

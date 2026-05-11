@@ -1,4 +1,4 @@
-# Module 4: Excessive Discount Authority
+# Module 3: Excessive Discount Authority
 
 ## Task
 
