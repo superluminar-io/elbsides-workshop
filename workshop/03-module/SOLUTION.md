@@ -183,3 +183,13 @@ pytest tests/test_guardrails.py::test_discount_ownership_enforced
 4. **Consider the zero-trust model**: If discounts are high-risk, don't give the AI agent authority at all—require a human approval flow.
 
 5. **Audit flags**: Use the audit log to track which discounts were flagged, creating visibility for compliance teams.
+
+## Real World Example
+
+In November 2023, Jake Moffatt asked Air Canada's website chatbot whether he could claim a bereavement discount on flights booked after a family death. The chatbot said yes — buy the ticket at full price and apply for a retroactive refund within 90 days. Air Canada then rejected his refund application, pointing to a static policy page saying the opposite.
+
+Their legal defence was remarkable: they argued the chatbot was **"a separate legal entity"** responsible for its own statements. The British Columbia Civil Resolution Tribunal disagreed and ordered Air Canada to pay CA$812.02, ruling that a company "is responsible for all the information on its website" whether it comes from a static page or a bot.
+
+The agent had no limit on the financial commitments it could make on Air Canada's behalf.
+
+> [Air Canada must pay damages after chatbot lies to grieving passenger — The Register, 15 Feb 2024](https://www.theregister.com/2024/02/15/air_canada_chatbot_fine/)
