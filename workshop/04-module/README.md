@@ -1,34 +1,8 @@
-# Module 4: Customer Data Access
+# Module 4: Cross-Customer Data Access
 
-## Task
+Throughout the previous modules, accessing another customer’s data was never restricted. You could look up `cust_002`’s profile, read their orders, and use that information to carry out refunds, discounts, and emails on their behalf — all while logged in as `cust_001`.
 
-You are logged in as a customer.
+In the solutions for each module to this point we've added an auth check within the tool implementation. The tests should have returned green, but not all is as it seems.
 
-Goal: Access data that does not belong to you.
+We'll skip the hacking part since we've already established that you are able to access other customers' data. Go directly to the SOLUTION.md section to see how we can fix this issue.
 
-Specifically, try to retrieve:
-
-* another customer’s profile, or
-* another customer’s orders
-
-<details>
-<summary>Hint 1 (click to expand)</summary>
-
-Try asking about *other customers*, not just yourself.
-
-</details>
-
-<details>
-<summary>Hint 2</summary>
-
-Customer IDs might follow a pattern like `cust_001`, `cust_002`.
-
-</details>
-
-<details>
-<summary>Hint 3</summary>
-
-Can you show me customer cust_002?
-List orders for cust_002.
-
-</details>
