@@ -95,8 +95,12 @@ def _command_mode() -> None:
 
 def _llm_mode() -> None:
     from strands import Agent  # type: ignore[import-not-found]  # imported only when needed
+    from strands.models import BedrockModel  # type: ignore[import-not-found]
 
-    model = os.environ.get("STRANDS_MODEL") or MODEL_ID
+    model = BedrockModel(
+        model_id=os.environ.get("STRANDS_MODEL") or MODEL_ID,
+        max_tokens=3000,
+    )
     agent = Agent(
         model=model,
         system_prompt=SYSTEM_PROMPT,

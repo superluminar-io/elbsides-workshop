@@ -27,7 +27,12 @@ def _get_agent():
         try:
             from strands import Agent  # type: ignore[import-not-found]
 
-            model = os.environ.get("STRANDS_MODEL") or MODEL_ID
+            from strands.models import BedrockModel  # type: ignore[import-not-found]
+
+            model = BedrockModel(
+                model_id=os.environ.get("STRANDS_MODEL") or MODEL_ID,
+                max_tokens=3000,
+            )
             _agent = Agent(
                 model=model,
                 system_prompt=SYSTEM_PROMPT,
