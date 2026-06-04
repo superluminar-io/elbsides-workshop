@@ -144,6 +144,11 @@ or with uv
 AWS_PROFILE=ai-workshop uv run pytest -q
 ```
 
+or with PowerShell
+```bash
+$env:AWS_PROFILE="ai-workshop"; pytest -q
+```
+
 You should see output like:
 
 ```
@@ -163,6 +168,11 @@ AWS_PROFILE=ai-workshop python server.py
 or with uv:
 ```bash
 AWS_PROFILE=ai-workshop uv run python server.py
+```
+
+or with PowerShell:
+```bash
+$env:AWS_PROFILE="ai-workshop"; python server.py
 ```
 
 Open [http://localhost:5000](http://localhost:5000) in your browser. You should see a chat interface and be able to send messages to the agent.
