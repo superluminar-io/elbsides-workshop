@@ -146,7 +146,7 @@ AWS_PROFILE=ai-workshop uv run pytest -q
 
 or with PowerShell
 ```bash
-for windows: $env:AWS_PROFILE="ai-workshop"; pytest -q
+$env:AWS_PROFILE="ai-workshop"; pytest -q
 ```
 
 You should see output like:
