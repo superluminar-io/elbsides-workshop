@@ -139,6 +139,11 @@ Then run the test suite:
 AWS_PROFILE=ai-workshop pytest -q
 ```
 
+or with uv
+```bash
+AWS_PROFILE=ai-workshop uv run pytest -q
+```
+
 You should see output like:
 
 ```
@@ -154,6 +159,10 @@ FAILED tests/test_guardrails.py::test_refund_blocks_other_customers_order
 
 ```bash
 AWS_PROFILE=ai-workshop python server.py
+```
+or with uv:
+```bash
+AWS_PROFILE=ai-workshop uv run python server.py
 ```
 
 Open [http://localhost:5000](http://localhost:5000) in your browser. You should see a chat interface and be able to send messages to the agent.
